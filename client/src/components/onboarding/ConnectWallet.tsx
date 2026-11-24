@@ -29,8 +29,8 @@ export default function ConnectWallet({ onNext }: ConnectWalletProps) {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Connect Your Wallet</CardTitle>
         <CardDescription>
-          Connect your Stellar wallet to use AgroCylo. You stay in custody — no
-          seed phrases handed over.
+          Connect your Stellar wallet to use Cylo. You stay in custody — no seed
+          phrases handed over.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

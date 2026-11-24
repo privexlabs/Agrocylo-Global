@@ -16,6 +16,7 @@ import { useCart } from "@/context/CartContext";
 import { useProducts } from "@/hooks/queries/useProducts";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useWallet } from "@/hooks/useWallet";
+import { ApiRequestError } from "@/lib/apiHelper";
 import type { ProductCategory } from "@/types/product";
 
 const CATEGORIES: Array<ProductCategory | "All"> = [
@@ -31,8 +32,11 @@ const CATEGORIES: Array<ProductCategory | "All"> = [
 type SortKey = "newest" | "price-asc" | "price-desc";
 
 function isNetworkError(error: unknown): boolean {
+  if (error instanceof ApiRequestError) {
+    return error.code === "NETWORK_ERROR" || error.code === "TIMEOUT" || error.status === 0;
+  }
   if (error instanceof TypeError) return true;
-  const message = error instanceof Error ? error.message : "";
+  const message = error instanceof Error ? error.message : String(error);
   return /failed to fetch|network|fetch failed/i.test(message);
 }
 
@@ -118,7 +122,7 @@ export default function MarketPage() {
           <Wrapper>
             <h1 className="text-foreground max-w-[805px] text-3xl leading-[1.2] font-semibold sm:text-4xl md:text-5xl lg:text-[56px]">
               Discover and Trade Fresh Farm Produce on{" "}
-              <span className="text-primary">{siteConfig.title}</span>.
+              <span className="text-primary">{siteConfig.brand}</span>.
             </h1>
             <p className="mt-3 max-w-[700px] text-base font-normal md:text-lg">
               Browse listings from farmers around the world. Every order is secured by
@@ -220,13 +224,13 @@ export default function MarketPage() {
             </div>
             <div className="space-y-1">
               <h3 className="text-lg font-semibold">
-                {isNetworkError(errorMessage)
+                {isNetworkError(error)
                   ? "Can't reach the marketplace right now"
                   : "Couldn't load products"}
               </h3>
               <p className="text-muted-foreground text-sm">
-                {isNetworkError(errorMessage)
-                  ? "The backend service is unreachable. Check your connection and try again."
+                {isNetworkError(error)
+                  ? "The marketplace service is unreachable. Check your connection, confirm NEXT_PUBLIC_API_URL is correct, and try again."
                   : errorMessage}
               </p>
             </div>

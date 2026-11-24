@@ -2,7 +2,7 @@
  * Soroban Contract Interaction Service
  *
  * Provides typed helpers for every escrow-contract method used by the
- * Agrocylo frontend: creating orders, confirming receipt, requesting
+ * Cylo frontend: creating orders, confirming receipt, requesting
  * expired-order refunds, and querying order state.
  *
  * All public functions return a {@link ContractResult} that wraps either

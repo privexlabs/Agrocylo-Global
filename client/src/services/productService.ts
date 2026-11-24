@@ -6,30 +6,85 @@ import type {
   ProductWriteInput,
 } from "@/types/product";
 
-import { API_BASE_URL } from "@/lib/apiConfig";
-import { apiRequest } from "@/lib/apiHelper";
+import { apiRequest, ApiRequestError } from "@/lib/apiHelper";
 import { isTestMode } from "@/lib/testMode";
 
 function productFromJson(json: unknown): Product {
   return json as Product;
 }
 
-async function requestJson<T>(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<T> {
-  const res = await fetch(input, init);
-  if (!res.ok) {
-    let message = `Request failed with status ${res.status}`;
-    try {
-      const body = await res.json();
-      message = body?.message || body?.title || message;
-    } catch {
-      // ignore
+const DEMO_PRODUCTS: Product[] = [
+  {
+    id: "demo-1",
+    farmer_wallet: "GDEMOFARMERAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    name: "Fresh Cassava Basket",
+    category: "Tubers",
+    price_per_unit: "25",
+    currency: "USDC",
+    unit: "bag",
+    stock_quantity: "40",
+    description: "Freshly harvested cassava, packed for same-week delivery.",
+    location: "Lagos, NG",
+    delivery_window: "2-3 days",
+    is_available: true,
+    image_url: null,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "demo-2",
+    farmer_wallet: "GDEMOFARMERBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    name: "Organic Tomatoes",
+    category: "Vegetables",
+    price_per_unit: "12",
+    currency: "XLM",
+    unit: "crate",
+    stock_quantity: "18",
+    description: "Vine-ripened tomatoes from a verified local farm.",
+    location: "Accra, GH",
+    delivery_window: "1-2 days",
+    is_available: true,
+    image_url: null,
+    created_at: "2026-01-02T00:00:00.000Z",
+    updated_at: "2026-01-02T00:00:00.000Z",
+  },
+];
+
+function matchesDemoFilters(product: Product, params: ListProductsParams): boolean {
+  if (params.farmer && product.farmer_wallet !== params.farmer) return false;
+  if (params.category && product.category !== params.category) return false;
+  if (params.categories?.length && !params.categories.includes(product.category)) return false;
+  if (params.search) {
+    const q = params.search.toLowerCase();
+    if (!product.name.toLowerCase().includes(q) && !(product.description ?? "").toLowerCase().includes(q)) {
+      return false;
     }
-    throw new Error(message);
   }
-  return (await res.json()) as T;
+  if (params.priceMin !== undefined && Number(product.price_per_unit) < params.priceMin) return false;
+  if (params.priceMax !== undefined && Number(product.price_per_unit) > params.priceMax) return false;
+  if (params.location && !(product.location ?? "").toLowerCase().includes(params.location.toLowerCase())) return false;
+  if (params.inStockOnly && !(Number(product.stock_quantity ?? 0) > 0)) return false;
+  if (params.stockMin !== undefined && Number(product.stock_quantity ?? 0) < params.stockMin) return false;
+  return true;
+}
+
+function getDemoProducts(params: ListProductsParams = {}) {
+  let items = DEMO_PRODUCTS.filter((p) => matchesDemoFilters(p, params));
+  switch (params.sort) {
+    case "price-asc":
+      items = [...items].sort((a, b) => Number(a.price_per_unit) - Number(b.price_per_unit));
+      break;
+    case "price-desc":
+      items = [...items].sort((a, b) => Number(b.price_per_unit) - Number(a.price_per_unit));
+      break;
+    default:
+      items = [...items].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? items.length || 20;
+  const start = (page - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+  return { page, page_size: pageSize, items: paged, total: items.length };
 }
 
 export type ProductSort =
@@ -55,50 +110,47 @@ export type ListProductsParams = {
 };
 
 export async function listProducts(params: ListProductsParams = {}) {
-  const url = new URL(`${API_BASE_URL}/products`);
-  if (params.farmer) url.searchParams.set("farmer", params.farmer);
-  if (params.category) url.searchParams.set("category", params.category);
-  if (params.categories && params.categories.length > 0) {
-    url.searchParams.set("categories", params.categories.join(","));
-  }
-  if (params.search) url.searchParams.set("q", params.search);
-  if (params.page) url.searchParams.set("page", String(params.page));
-  if (params.pageSize)
-    url.searchParams.set("page_size", String(params.pageSize));
-  if (params.includeUnavailable)
-    url.searchParams.set("include_unavailable", "true");
-  if (params.priceMin !== undefined)
-    url.searchParams.set("price_min", String(params.priceMin));
-  if (params.priceMax !== undefined)
-    url.searchParams.set("price_max", String(params.priceMax));
-  if (params.ratingMin !== undefined)
-    url.searchParams.set("rating_min", String(params.ratingMin));
-  if (params.location) url.searchParams.set("location", params.location);
-  if (params.inStockOnly) url.searchParams.set("in_stock", "true");
-  if (params.maxAgeDays !== undefined)
-    url.searchParams.set("max_age_days", String(params.maxAgeDays));
-  if (params.stockMin !== undefined)
-    url.searchParams.set("stock_min", String(params.stockMin));
-  if (params.sort) url.searchParams.set("sort", params.sort);
+  if (isTestMode()) return getDemoProducts(params);
 
-  return await requestJson<{
+  const search = new URLSearchParams();
+  if (params.farmer) search.set("farmer", params.farmer);
+  if (params.category) search.set("category", params.category);
+  if (params.categories && params.categories.length > 0) {
+    search.set("categories", params.categories.join(","));
+  }
+  if (params.search) search.set("q", params.search);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("page_size", String(params.pageSize));
+  if (params.includeUnavailable) search.set("include_unavailable", "true");
+  if (params.priceMin !== undefined) search.set("price_min", String(params.priceMin));
+  if (params.priceMax !== undefined) search.set("price_max", String(params.priceMax));
+  if (params.ratingMin !== undefined) search.set("rating_min", String(params.ratingMin));
+  if (params.location) search.set("location", params.location);
+  if (params.inStockOnly) search.set("in_stock", "true");
+  if (params.maxAgeDays !== undefined) search.set("max_age_days", String(params.maxAgeDays));
+  if (params.stockMin !== undefined) search.set("stock_min", String(params.stockMin));
+  if (params.sort) search.set("sort", params.sort);
+
+  const qs = search.toString();
+  return await apiRequest<{
     page: number;
     page_size: number;
     items: Product[];
     total?: number;
-  }>(url);
+  }>(`/products${qs ? `?${qs}` : ""}`);
 }
 
 export async function getProductById(
   productId: string,
 ): Promise<Product | null> {
+  if (isTestMode()) return DEMO_PRODUCTS.find((p) => p.id === productId) ?? null;
   try {
-    const json = await requestJson<unknown>(
-      `${API_BASE_URL}/products/${productId}`,
-    );
+    const json = await apiRequest<unknown>(`/products/${productId}`);
     return productFromJson(json);
   } catch (err) {
-    if (err instanceof Error && /404|not found/i.test(err.message)) return null;
+    if (err instanceof ApiRequestError && (err.status === 404 || err.code === "NOT_FOUND")) {
+      return null;
+    }
     throw err;
   }
 }
@@ -198,19 +250,15 @@ export async function adminSetProductVisibility(
   productId: string,
   isAvailable: boolean,
 ): Promise<Product> {
-  return requestJson<Product>(
-    `${API_BASE_URL}/admin/products/${productId}/visibility`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_available: isAvailable }),
-    },
-  );
+  return apiRequest<Product>(`/admin/products/${productId}/visibility`, {
+    method: "PATCH",
+    body: { is_available: isAvailable },
+  });
 }
 
 /** Admin: permanently delist (hard-delete) a product. */
 export async function adminDelistProduct(productId: string): Promise<void> {
-  await requestJson<void>(`${API_BASE_URL}/admin/products/${productId}`, {
+  await apiRequest<void>(`/admin/products/${productId}`, {
     method: "DELETE",
   });
 }
@@ -290,10 +338,7 @@ function writeLocal<T>(key: string, value: T) {
 
 export async function listSavedSearches(): Promise<SavedSearch[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/search/saved`, {
-      credentials: "include",
-    });
-    if (res.ok) return await res.json();
+    return await apiRequest<SavedSearch[]>('/search/saved');
   } catch {
     // fall through to local
   }
@@ -315,13 +360,7 @@ export async function createSavedSearch(input: {
     createdAt: new Date().toISOString(),
   };
   try {
-    const res = await fetch(`${API_BASE_URL}/search/saved`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(entry),
-    });
-    if (res.ok) return await res.json();
+    return await apiRequest<SavedSearch>('/search/saved', { method: 'POST', body: entry });
   } catch {
     // fall through
   }
@@ -332,11 +371,8 @@ export async function createSavedSearch(input: {
 
 export async function deleteSavedSearch(id: string): Promise<void> {
   try {
-    const res = await fetch(`${API_BASE_URL}/search/saved/${id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    if (res.ok) return;
+    await apiRequest<void>(`/search/saved/${id}`, { method: 'DELETE' });
+    return;
   } catch {
     // fall through
   }
@@ -352,13 +388,7 @@ export async function updateSavedSearch(
   patch: Partial<Pick<SavedSearch, "name" | "emailAlerts" | "pushAlerts">>,
 ): Promise<SavedSearch | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/search/saved/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(patch),
-    });
-    if (res.ok) return await res.json();
+    return await apiRequest<SavedSearch>(`/search/saved/${id}`, { method: 'PATCH', body: patch });
   } catch {
     // fall through
   }
@@ -486,31 +516,22 @@ const FALLBACK_POPULAR_SEARCHES = [
 
 export async function fetchPopularSearches(): Promise<string[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/search/popular`, {
-      credentials: "include",
-    });
-    if (res.ok) return await res.json();
+    return await apiRequest<string[]>('/search/popular');
   } catch {
-    // fall through
+    return FALLBACK_POPULAR_SEARCHES;
   }
-  return FALLBACK_POPULAR_SEARCHES;
 }
 
 export async function fetchTrendingProducts(): Promise<Product[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/products/trending`, {
-      credentials: "include",
-    });
-    if (res.ok) return await res.json();
+    return await apiRequest<Product[]>('/products/trending');
   } catch {
-    // fall through
-  }
-  // Best-effort: just return the first page of newest products
-  try {
-    const first = await listProducts({ pageSize: 6, sort: "newest" });
-    return first.items;
-  } catch {
-    return [];
+    try {
+      const first = await listProducts({ pageSize: 6, sort: "newest" });
+      return first.items;
+    } catch {
+      return [];
+    }
   }
 }
 
@@ -518,25 +539,20 @@ export async function fetchSearchSuggestions(query: string): Promise<string[]> {
   const q = query.trim();
   if (!q) return [];
   try {
-    const url = new URL(`${API_BASE_URL}/search/suggestions`);
-    url.searchParams.set("q", q);
-    const res = await fetch(url, { credentials: "include" });
-    if (res.ok) return await res.json();
+    return await apiRequest<string[]>(`/search/suggestions?q=${encodeURIComponent(q)}`);
   } catch {
-    // fall through
-  }
-  // Local fallback: filter the popular list + history
-  const ql = q.toLowerCase();
-  const combined = [...readSearchHistory(), ...FALLBACK_POPULAR_SEARCHES];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const term of combined) {
-    const tl = term.toLowerCase();
-    if (tl.includes(ql) && !seen.has(tl)) {
-      seen.add(tl);
-      out.push(term);
-      if (out.length >= 6) break;
+    const ql = q.toLowerCase();
+    const combined = [...readSearchHistory(), ...FALLBACK_POPULAR_SEARCHES];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const term of combined) {
+      const tl = term.toLowerCase();
+      if (tl.includes(ql) && !seen.has(tl)) {
+        seen.add(tl);
+        out.push(term);
+        if (out.length >= 6) break;
+      }
     }
+    return out;
   }
-  return out;
 }

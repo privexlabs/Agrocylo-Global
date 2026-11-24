@@ -142,10 +142,33 @@ async function headers() {
   ];
 }
 
+async function rewrites() {
+  const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (!rawApiUrl) return [];
+
+  try {
+    const parsed = new URL(rawApiUrl);
+    const isLocalBackend =
+      parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+    if (!isLocalBackend) return [];
+
+    const backendOrigin = parsed.origin;
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendOrigin}/:path*`,
+      },
+    ];
+  } catch {
+    return [];
+  }
+}
+
 const nextConfig: NextConfig = {
   transpilePackages: ["@agrocylo/instrumentation"],
   output: "standalone",
   headers,
+  rewrites,
   turbopack: {
     root: repoRoot,
   },

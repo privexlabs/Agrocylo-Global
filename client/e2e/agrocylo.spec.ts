@@ -1,7 +1,7 @@
 import { test, expect, BrowserContext, Page } from "@playwright/test";
 
 /**
- * Agrocylo Global – End-to-End Test Suite
+ * Cylo – End-to-End Test Suite
  * Issue: #28  [Frontend] End-to-end testing
  *
  * Flows:

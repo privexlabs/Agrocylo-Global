@@ -2,7 +2,9 @@
  * Single source of truth for backend connection configuration.
  *
  * Set NEXT_PUBLIC_API_URL in `.env.local` for both REST and Socket.io.
- * Default points at the Express dev server.
+ * Defaults to same-origin /api, which works with the repo's Caddy/proxy setup.
  */
+const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+  rawApiBaseUrl && rawApiBaseUrl.length > 0 ? rawApiBaseUrl : "/api";

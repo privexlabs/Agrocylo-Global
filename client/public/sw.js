@@ -1,4 +1,4 @@
-const CACHE_NAME = "agrocylo-v2";
+const CACHE_NAME = "cylo-v2";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   "/",

@@ -21,13 +21,14 @@ Agrocylo-Global is an Agro-DeFi platform built on Stellar/Soroban. The repositor
 Issues are tracked in **[GitHub Issues](https://github.com/Cylo-Traders/Agrocylo-Global/issues)**.
 
 **Browse labels:**
-- `area:frontend` — Next.js/React work
-- `area:backend` — Express/Node.js work
-- `area:contracts` — Rust/Soroban work
-- `type:bug` — Bugs
-- `type:feature` — New features
-- `type:refactor` — Code quality
-- `good-first-issue` — Recommended for new contributors
+- `Frontend` — Next.js/React work
+- `Backend` — Express/Node.js work
+- `Contract` — Rust/Soroban work
+- `bug` — Bugs
+- `enhancement` — New features and improvements
+- `documentation` — Documentation updates
+- `good first issue` — Recommended for new contributors
+- `help wanted` — Extra attention needed
 - `Stellar Wave` — Suitable for external contribution (bounty-eligible)
 
 ### 2. Discuss Before Starting
@@ -375,7 +376,10 @@ Agrocylo Global participates in the **Stellar Wave issue-claim bounty program** 
 ## Questions?
 
 - **Repo structure:** See [ARCHITECTURE.md](ARCHITECTURE.md)
-- **API endpoints:** See `server/API.md` or `agro-production/server/API.md`
+- **Environment variables:** See [docs/deployment/environment.md](docs/deployment/environment.md)
+- **Frontend setup:** See [docs/FRONTEND_SETUP.md](docs/FRONTEND_SETUP.md)
+- **Backend unification:** See [docs/architecture/backend-unification.md](docs/architecture/backend-unification.md)
+- **API endpoints:** See [server/docs/API.md](server/docs/API.md) and [client/API.md](client/API.md)
 - **Smart contracts:** See `contracts/` and `docs/contracts/` README files
 - **Toolchain & versions:** See [docs/TOOLCHAIN.md](docs/TOOLCHAIN.md)
 - **Security & audit notes:** See [contracts/SECURITY_AUDIT.md](contracts/SECURITY_AUDIT.md)

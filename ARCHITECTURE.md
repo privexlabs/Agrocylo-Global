@@ -19,37 +19,38 @@ Both applications use Stellar wallets, on-chain escrow, and WebSocket-based real
 
 ### 1. Root Marketplace (`client/` + `server/`)
 
-**Status:** Earlier-stage, simpler escrow pattern
+**Status:** Mature marketplace, lower active development priority than `agro-production/`
 **Use case:** Peer-to-peer goods trade with immediate payment-on-delivery escrow
 
 #### `client/`
-- Next.js 13+ (App Router)
-- **Wallet:** Freighter API (`@stellar/freighter-api`)
-- **State:** React Context (WalletContext, OrderContext)
+- Next.js 16 (App Router), React 19
+- **Wallet:** `@creit-tech/stellar-wallets-kit` (Freighter, Albedo, and other supported wallets)
+- **State:** React Context (wallet, cart, orders, profile) + React Query
 - **Features:**
   - Product listing and search
   - Order creation and tracking
   - Escrow state transitions (confirm/refund/dispute)
-  - Notifications and real-time updates via WebSocket
+  - Notifications and real-time updates via Socket.io
 - **Key files:**
+  - `src/app/(root)/market/` — marketplace listing and product detail
   - `src/app/(root)/orders/` — order detail and management
   - `src/components/` — reusable UI components
-  - `src/services/stellar/` — contract interaction, transaction signing
-  - `src/context/` — global state (wallet, orders)
+  - `src/services/` and `src/lib/` — API and contract interaction
+  - `src/context/` — global state (wallet, cart, orders, profile)
 
 #### `server/`
-- Express.js
+- Express.js (TypeScript)
 - Prisma ORM with PostgreSQL
 - **Services:**
   - Order and product management (REST API)
-  - WebSocket server for real-time notifications
+  - Socket.io server for real-time notifications
   - Event indexing from Stellar ledger (via Soroban RPC)
   - Contract watcher for escrow state changes
 - **Key files:**
-  - `src/routes/` — REST API endpoints (orders, products, auth)
+  - `src/routes/` — REST API endpoints
   - `src/services/contractWatcher.ts` — polls RPC for escrow events
-  - `src/services/wsManager.ts` — WebSocket client/subscription management
-  - `src/controllers/` — business logic for orders, products
+  - `src/services/` — business and integration services
+  - `src/controllers/` — request handling
 
 **Contracts used:** `contracts/escrow/` (direct payment escrow)
 
@@ -61,8 +62,8 @@ Both applications use Stellar wallets, on-chain escrow, and WebSocket-based real
 **Use case:** Campaign-based crowdfunding for agricultural production (investors lock funds, farmers execute production, investors claim returns)
 
 #### `agro-production/client/`
-- Next.js 14+ (App Router)
-- **Wallet:** Freighter API (same pattern as root client)
+- Next.js (App Router)
+- **Wallet:** Stellar wallet-kit integration (same wallet stack pattern as marketplace client)
 - **State:** React Context + custom hooks
 - **Features:**
   - Campaign creation (by farmers)
@@ -71,31 +72,28 @@ Both applications use Stellar wallets, on-chain escrow, and WebSocket-based real
   - Investor dashboards and return claims
   - Real-time campaign status updates
 - **Key files:**
-  - `src/app/campaigns/` — campaign listing and details
-  - `src/app/invest/` — investment flow
-  - `src/lib/contractService.ts` — builds invest XDR, interacts with production_escrow contract
-  - `src/lib/signTransaction.ts` — signs and submits transactions
-  - `src/hooks/` — custom React hooks (useInvest, useCampaign, etc.)
+  - `src/app/` — campaign routes and UI
+  - `src/lib/` — contract/XDR helpers and API integration
+  - `src/hooks/` — custom React hooks
 
 #### `agro-production/server/`
-- Express.js
+- Express.js (TypeScript)
 - Prisma ORM with PostgreSQL
 - **Services:**
   - Campaign and investment REST API
-  - WebSocket for real-time campaign/investment updates
-  - Soroban event watcher (polls RPC for production_escrow events)
+  - WebSocket/real-time campaign updates
+  - Soroban event watcher for production_escrow events
   - Image upload endpoint for campaign photos
 - **Key files:**
-  - `src/routes/` — REST API for campaigns, investments, auth
-  - `src/services/contractWatcher.ts` — indexes production_escrow events (campaign.created, campaign.invested)
-  - `src/services/wsManager.ts` — broadcasts Soroban events to WebSocket clients
-  - `src/controllers/campaignController.ts` — campaign business logic
+  - `src/routes/` — REST API routes
+  - `src/services/contractWatcher.ts` — indexes production_escrow events
+  - `src/services/` — business and integration services
 
 **Contracts used:** 
 - `contracts/production_escrow/` — main crowdfunding escrow
 - `contracts/registry/` — campaign/farmer registration
 - `contracts/investment_basket/` — investor pool management
-- `contracts/governance/` — DAO/governance features (future)
+- `contracts/governance/` — governance features
 
 ---
 
@@ -250,28 +248,22 @@ Both apps use `classifyError()` utility to categorize contract errors:
 - Governance features (`contracts/governance/`)
 - Root marketplace enhancements
 
-### Not Active
-- `client/` and `server/` (root marketplace) — production-ready but not under active development for Stellar Wave
+### Lower Priority
+- `client/` and `server/` (root marketplace) — mature and maintained, but lower priority than current Stellar Wave production-campaign work
 
 ---
 
 ## Environment Configuration
 
-### Frontend (both client/ and agro-production/client/)
-```
-NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
-NEXT_PUBLIC_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
-NEXT_PUBLIC_CONTRACT_ID=<address>  # agro-production/client only
-```
+Environment variable names differ by app. Use the app `.env.example` files and the authoritative reference:
 
-### Backend (both server/ and agro-production/server/)
-```
-DATABASE_URL=postgresql://...
-SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
-CONTRACT_ID=<address>
-RUN_CONTRACT_WATCHER=true
-PORT=3001
-```
+- [docs/deployment/environment.md](docs/deployment/environment.md)
+
+Common examples (not exhaustive):
+- Marketplace client: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_NETWORK_PASSPHRASE`, `NEXT_PUBLIC_CONTRACT_ID`
+- Production client: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_NETWORK_PASSPHRASE`, `NEXT_PUBLIC_PRODUCTION_CONTRACT_ID`
+- Marketplace server: `DATABASE_URL`, `RPC_URL`, `CONTRACT_ID`, `RUN_CONTRACT_WATCHER`, `PORT`
+- Production server: `DATABASE_URL`, `RPC_URL`, `PRODUCTION_ESCROW_CONTRACT_ID`, `PORT`
 
 ---
 
@@ -301,7 +293,10 @@ PORT=3001
 
 ## Questions?
 
-- **Repo structure:** See this ARCHITECTURE.md
-- **API endpoints:** See `server/API.md` or `agro-production/server/API.md`
-- **Contract interfaces:** See `contracts/` and the documentation in `docs/contracts/`
+- **Repo structure:** See this [ARCHITECTURE.md](ARCHITECTURE.md)
+- **Frontend setup:** See [docs/FRONTEND_SETUP.md](docs/FRONTEND_SETUP.md)
+- **Environment variables:** See [docs/deployment/environment.md](docs/deployment/environment.md)
+- **Backend unification:** See [docs/architecture/backend-unification.md](docs/architecture/backend-unification.md)
+- **API endpoints:** See [server/docs/API.md](server/docs/API.md) and [client/API.md](client/API.md)
+- **Contract interfaces:** See `contracts/` and [contracts/README.md](contracts/README.md)
 - **Deployment:** Check CI workflows in `.github/workflows/`

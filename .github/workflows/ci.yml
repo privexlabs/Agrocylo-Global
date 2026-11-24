@@ -150,6 +150,12 @@ jobs:
       - name: Markdown relative links
         run: npm run check:links
 
+      - name: Label manifest drift check
+        run: npm run check:labels
+
+      - name: Marketplace API contract coverage
+        run: npm run check:contracts
+
       - name: Shared dependency policy check
         run: npm run check:versions
 

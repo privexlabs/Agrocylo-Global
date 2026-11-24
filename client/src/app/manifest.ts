@@ -3,8 +3,8 @@ import { siteConfig } from "@/config/site.config";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "AgroCylo — Agro-DeFi Marketplace on Stellar",
-    short_name: "AgroCylo",
+    name: "Cylo — Agro-DeFi Marketplace on Stellar",
+    short_name: siteConfig.brand,
     description: siteConfig.description,
     start_url: "/",
     display: "standalone",
